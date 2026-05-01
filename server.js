@@ -25,8 +25,9 @@ app.use("/api/expenses", require("./src/routes/expenses"));
 app.use("/api/reports", require("./src/routes/reports"));
 app.use("/api/payments", require("./src/routes/payments"));
 app.use("/api/mess", require("./src/routes/mess"));
-app.use("/api/meal-adjustments", require("./src/routes/mealAdjustments"));
-app.use("/api/ledger",           require("./src/routes/ledger"));
+app.use("/api/meal-adjustments",  require("./src/routes/mealAdjustments"));
+app.use("/api/advance-payments",  require("./src/routes/advancePayments"));
+app.use("/api/ledger",            require("./src/routes/ledger"));
 
 app.get("/api/health", (req, res) =>
   res.json({ status: "OK", message: "Mess Management API is running" }),

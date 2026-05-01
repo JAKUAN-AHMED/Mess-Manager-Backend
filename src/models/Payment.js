@@ -6,6 +6,7 @@ const paymentSchema = new mongoose.Schema({
   year: { type: Number, required: true },
   totalBill: { type: Number, required: true },
   paidAmount: { type: Number, default: 0 },
+  advanceAmount: { type: Number, default: 0 },
   status: { type: String, enum: ['পরিশোধিত', 'বাকি'], default: 'বাকি' },
   paymentDate: { type: Date },
 }, { timestamps: true });

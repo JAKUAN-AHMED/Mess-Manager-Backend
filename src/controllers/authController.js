@@ -27,6 +27,8 @@ exports.login = async (req, res) => {
     if (!user || !(await user.matchPassword(password)))
       return res.status(401).json({ success: false, error: 'ফোন বা পাসওয়ার্ড ভুল' });
 
+    if (user.isArchived)
+      return res.status(403).json({ success: false, error: 'এই অ্যাকাউন্ট আর্কাইভ করা হয়েছে' });
     if (!user.isActive)
       return res.status(403).json({ success: false, error: 'অ্যাকাউন্ট নিষ্ক্রিয়' });
 
@@ -116,6 +118,28 @@ exports.signup = async (req, res) => {
 exports.getMe = async (req, res) => {
   const user = await User.findById(req.user._id).select('-password').populate('mess', 'name joinCode');
   res.json({ success: true, data: user });
+};
+
+// POST /api/auth/member-login — member logs in with their unique code
+exports.memberCodeLogin = async (req, res) => {
+  try {
+    const { memberCode } = req.body;
+    if (!memberCode)
+      return res.status(400).json({ success: false, error: 'মেম্বার কোড দিন' });
+
+    const user = await User.findOne({ memberCode: memberCode.toUpperCase().trim() });
+    if (!user)
+      return res.status(401).json({ success: false, error: 'কোডটি সঠিক নয়' });
+
+    if (user.isArchived)
+      return res.status(403).json({ success: false, error: 'এই অ্যাকাউন্ট আর্কাইভ করা হয়েছে' });
+    if (!user.isActive)
+      return res.status(403).json({ success: false, error: 'অ্যাকাউন্ট নিষ্ক্রিয়' });
+
+    res.json({ success: true, data: userPayload(user, generateToken(user._id)) });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 };
 
 // POST /api/auth/forgot-password  (public — verified via phone + mess join code)

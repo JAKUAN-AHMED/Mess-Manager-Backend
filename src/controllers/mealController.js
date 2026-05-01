@@ -1,12 +1,14 @@
 const Meal = require('../models/Meal');
+const User = require('../models/User');
 
 // POST /api/meals — add or update a daily meal entry
 exports.addOrUpdateMeal = async (req, res) => {
   try {
     const { userId, date, breakfast, lunch, dinner } = req.body;
     const totalMeals = (breakfast || 0) + (lunch || 0) + (dinner || 0);
-    const mealDate = new Date(date);
-    mealDate.setHours(0, 0, 0, 0);
+    // Normalize to UTC midnight to avoid timezone-based duplicate documents
+    const [y, m, d] = String(date).slice(0, 10).split('-').map(Number);
+    const mealDate = new Date(Date.UTC(y, m - 1, d));
 
     const meal = await Meal.findOneAndUpdate(
       { user: userId, date: mealDate },
@@ -27,11 +29,24 @@ exports.getMeals = async (req, res) => {
     const filter = {};
 
     if (month && year) {
-      const start = new Date(year, month - 1, 1);
-      const end = new Date(year, month, 0, 23, 59, 59);
+      const start = new Date(Date.UTC(year, month - 1, 1));
+      const end   = new Date(Date.UTC(year, month,     0, 23, 59, 59));
       filter.date = { $gte: start, $lte: end };
     }
-    if (userId) filter.user = userId;
+
+    if (userId) {
+      filter.user = userId;
+    } else {
+      const messId = req.user.mess;
+      if (messId) {
+        await User.updateMany(
+          { $or: [{ mess: { $exists: false } }, { mess: null }] },
+          { $set: { mess: messId } }
+        );
+      }
+      const messUserIds = await User.find({ mess: messId }).distinct('_id');
+      filter.user = { $in: messUserIds };
+    }
 
     const meals = await Meal.find(filter)
       .populate('user', 'name phone roomNumber')

@@ -1,4 +1,5 @@
 const Expense = require('../models/Expense');
+const User = require('../models/User');
 
 // POST /api/expenses
 exports.addExpense = async (req, res) => {
@@ -35,7 +36,15 @@ exports.addExpense = async (req, res) => {
 exports.getExpenses = async (req, res) => {
   try {
     const { month, year } = req.query;
-    const filter = {};
+    const messId = req.user.mess;
+    if (messId) {
+      await User.updateMany(
+        { $or: [{ mess: { $exists: false } }, { mess: null }] },
+        { $set: { mess: messId } }
+      );
+    }
+    const messUserIds = await User.find({ mess: messId }).distinct('_id');
+    const filter = { addedBy: { $in: messUserIds } };
     if (month && year) {
       const start = new Date(year, month - 1, 1);
       const end = new Date(year, month, 0, 23, 59, 59);

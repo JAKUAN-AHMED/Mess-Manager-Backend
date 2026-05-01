@@ -13,6 +13,9 @@ const protect = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = await User.findById(decoded.id).select('-password');
     if (!req.user) return res.status(401).json({ success: false, error: 'ব্যবহারকারী পাওয়া যায়নি' });
+    if (req.user.isArchived) {
+      return res.status(403).json({ success: false, error: 'অ্যাকাউন্ট আর্কাইভ করা হয়েছে' });
+    }
     next();
   } catch (err) {
     return res.status(401).json({ success: false, error: 'টোকেন অবৈধ' });

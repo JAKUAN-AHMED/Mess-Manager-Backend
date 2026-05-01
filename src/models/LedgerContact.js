@@ -5,8 +5,10 @@ const ledgerContactSchema = new mongoose.Schema({
   name:   { type: String, required: true, trim: true },
   phone:  { type: String, default: '' },
   note:   { type: String, default: '' },
+  sharedWith: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 }, { timestamps: true });
 
 ledgerContactSchema.index({ owner: 1 });
+ledgerContactSchema.index({ sharedWith: 1 });
 
 module.exports = mongoose.model('LedgerContact', ledgerContactSchema);

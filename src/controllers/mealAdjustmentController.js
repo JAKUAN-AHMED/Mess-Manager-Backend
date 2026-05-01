@@ -1,4 +1,5 @@
 const MealAdjustment = require('../models/MealAdjustment');
+const User = require('../models/User');
 
 // POST /api/meal-adjustments
 exports.addAdjustment = async (req, res) => {
@@ -24,7 +25,15 @@ exports.addAdjustment = async (req, res) => {
 exports.getAdjustments = async (req, res) => {
   try {
     const { month, year } = req.query;
-    const filter = {};
+    const messId = req.user.mess;
+    if (messId) {
+      await User.updateMany(
+        { $or: [{ mess: { $exists: false } }, { mess: null }] },
+        { $set: { mess: messId } }
+      );
+    }
+    const messUserIds = await User.find({ mess: messId }).distinct('_id');
+    const filter = { user: { $in: messUserIds } };
     if (month) filter.month = parseInt(month);
     if (year)  filter.year  = parseInt(year);
     const adjustments = await MealAdjustment.find(filter)

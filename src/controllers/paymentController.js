@@ -1,22 +1,47 @@
 const Payment = require('../models/Payment');
-const User = require('../models/User');
+const AdvancePayment = require('../models/AdvancePayment');
 
 // POST /api/payments
 exports.recordPayment = async (req, res) => {
   try {
-    const { userId, month, year, totalBill, paidAmount } = req.body;
-    const status = paidAmount >= totalBill ? 'পরিশোধিত' : 'বাকি';
+    const { userId, month, year, totalBill, paidAmount, isMessOwesMember } = req.body;
+    
+    let status, advanceAmount;
+    
+    if (isMessOwesMember) {
+      // Mess is paying the member from advance fund
+      status = 'পরিশোধিত';
+      advanceAmount = 0; // No new advance, we're using existing advance
+      
+      // Deduct from advance payments
+      // Find all advance payments for this user/month/year and reduce them proportionally
+      let remainingToDeduct = paidAmount;
+      const userAdvances = await AdvancePayment.find({ user: userId, month, year }).sort({ createdAt: 1 });
+      
+      for (const adv of userAdvances) {
+        if (remainingToDeduct <= 0) break;
+        
+        const deductAmount = Math.min(adv.amount, remainingToDeduct);
+        adv.amount -= deductAmount;
+        remainingToDeduct -= deductAmount;
+        
+        if (adv.amount <= 0) {
+          await AdvancePayment.deleteOne({ _id: adv._id });
+        } else {
+          await adv.save();
+        }
+      }
+    } else {
+      // Member is paying the mess
+      status = paidAmount >= totalBill ? 'পরিশোধিত' : 'বাকি';
+      advanceAmount = paidAmount > totalBill ? parseFloat((paidAmount - totalBill).toFixed(2)) : 0;
+    }
 
     const payment = await Payment.findOneAndUpdate(
       { user: userId, month, year },
-      { totalBill, paidAmount, status, paymentDate: new Date() },
+      { totalBill, paidAmount, advanceAmount, status, paymentDate: new Date() },
       { new: true, upsert: true }
     ).populate('user', 'name phone');
-
-    // Deduct from advancedPayment if applicable
-    if (paidAmount > totalBill) {
-      await User.findByIdAndUpdate(userId, { $inc: { advancedPayment: paidAmount - totalBill } });
-    }
 
     res.status(200).json({ success: true, data: payment });
   } catch (err) {
